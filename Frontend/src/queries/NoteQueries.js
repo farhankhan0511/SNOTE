@@ -9,6 +9,7 @@ import {
   getAllTrashedNotes,
   getAllUserNotes,
   getNoteById,
+  getUserNoteById,
   restoreTrashedNote,
   trashNote,
   updateNote,
@@ -30,6 +31,12 @@ export const useNote = (id) =>
   useQuery({
     queryKey: ["notes", id],
     queryFn: () => getNoteById(id),
+    enabled: !!id,
+  });
+export const useMyNote = (id) =>
+  useQuery({
+    queryKey: ["notes", id],
+    queryFn: () => getUserNoteById(id),
     enabled: !!id,
   });
 
@@ -152,3 +159,10 @@ export const useRestoreTrashedNote = () => {
     },
   });
 };
+
+// export const useForksOfNote = (noteId) =>
+//   useQuery({
+//     queryKey: ["forks", noteId],
+//     queryFn: () => getForksOfNote(noteId),
+//     enabled: !!noteId,
+//   });

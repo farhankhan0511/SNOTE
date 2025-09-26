@@ -27,7 +27,7 @@ const NotesListPage = () => {
   const notes = notesData || [];
 
   const handleNoteSelect = (note) => {
-    navigate(`/public-notes/${note._id}`);
+    navigate(`/view/${note._id}`);
   };
 
   const getPlainTextPreview = (htmlContent) => {
@@ -56,12 +56,7 @@ const NotesListPage = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Discover Notes</h1>
-            <button
-              onClick={() => navigate("/notes")}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              My Notes
-            </button>
+            
           </div>
 
           {/* Search Bar */}

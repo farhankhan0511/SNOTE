@@ -3,6 +3,9 @@ import { v2 as cloudinary } from "cloudinary";
 import { removefromCloudinary } from "../utils/Cloudnary.js";
 import {asynchandler} from "../utils/asynchandler.js"
 import {ApiResponse} from "../utils/ApiResponse.js";
+import { fileToHtmlFromBuffer } from "../utils/filetoHtml.js";
+import path from "path";
+
 
 // Configure Cloudinary
 cloudinary.config({
@@ -29,7 +32,7 @@ export const getAllUserNotes = async (req, res) => {
       $or: [
         { owner: userId },
         { "collaborators.user": userId },
-        { visibility: "public" },
+        
       ],
     }).sort({ pinnedAt: -1, updatedAt: -1 });
 
@@ -39,7 +42,7 @@ export const getAllUserNotes = async (req, res) => {
   }
 };
 
-export const getNoteById = async (req, res) => {
+export const getUserNoteById = async (req, res) => {
   try {
     const userId = req.user._id;
     const note = await Note.findById(req.params.id);
@@ -52,6 +55,22 @@ export const getNoteById = async (req, res) => {
           (c) => c.user.toString() === userId.toString()
         ))
     ) {
+      return res.status(403).json({ success: false, error: "Not authorized" });
+    }
+
+    res.status(200).json({ success: true, data: note });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getNoteById = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const note = await Note.findById(req.params.id).populate("owner","Username").populate("collaborators.user","Username");
+
+    if (
+      !note) {
       return res.status(403).json({ success: false, error: "Not authorized" });
     }
 
@@ -93,7 +112,7 @@ export const togglevisibility=asynchandler(async(req,res)=>{
  try {
    const note=await Note.findById(req.params.id);
    if(!note){
-     return res.status(404).json(new ApiResponse(404,{},"Note not found"));
+     return res.status(404).json(new ApiResponse(404,{},"fuck Note not found"));
    }
    if(note.owner.toString()!==userId.toString()){
      return res.status(403).json(new ApiResponse(403,{},"Not authorized"));
@@ -339,8 +358,8 @@ export const deleteNoteImage = async (req, res) => {
 export const getAllNotes = asynchandler(async (req, res) => {
   const id=req.user._id;
  try {
-  
-   const Notes=await Note.find({owner: { $ne: id }}).populate("owner","Username").populate("collaborators.user","Username").sort({createdAt:-1});
+
+   const Notes=await Note.find({owner: { $ne: id }, visibility: "public"}).populate("owner","Username").populate("collaborators.user","Username").sort({createdAt:-1});
    if(!Notes){
      return res.status(404).json(new ApiResponse(404,{},"Notes not found"))
  
@@ -350,3 +369,71 @@ export const getAllNotes = asynchandler(async (req, res) => {
    return res.status(500).json(new ApiResponse(500,{},error.message))
  }
 })
+
+
+export const uploadNotefromFile = asynchandler(async (req, res) => {
+  let tempPath = null;
+  try {
+    if (!req.user) return res.status(401).json({ error: "Please log in" });
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    console.log("Received req.file:", {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      hasBuffer: !!req.file.buffer,
+    });
+
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (req.file.size > MAX_SIZE) {
+      return res.status(400).json({ error: "File too large. Max 10MB allowed." });
+    }
+
+    let buffer;
+    const filename = req.file.originalname || "upload";
+
+    if (req.file.buffer && Buffer.isBuffer(req.file.buffer)) {
+      buffer = req.file.buffer;
+    } else if (req.file.path) {
+      tempPath = req.file.path;
+      if (!fs.existsSync(tempPath)) {
+        console.error("Expected uploaded file path not found:", tempPath);
+        return res.status(500).json({ error: "Uploaded file missing on server" });
+      }
+      buffer = fs.readFileSync(tempPath);
+    } else {
+      return res.status(400).json({ error: "Unsupported upload configuration" });
+    }
+
+    // Convert file to HTML (this runs OCR where needed)
+    const htmlContent = await fileToHtmlFromBuffer({ buffer, filename });
+
+    // Determine a nice title (use filename without extension)
+    const title = path.basename(filename, path.extname(filename)) || "Imported Note";
+
+    // Save as Note in DB
+    const newNote = await Note.create({
+      title,
+      content: htmlContent,
+      owner: req.user._id,
+    });
+
+    return res.status(200).json({ message: "File processed successfully", note: newNote });
+  } catch (error) {
+    console.error("Note file upload error:", error);
+    return res.status(500).json({ error: error.message || "Internal error" });
+  } finally {
+    try {
+      if (tempPath && fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+        console.log("Temp file deleted:", tempPath);
+      }
+    } catch (e) {
+      console.warn("Failed to delete temp file:", tempPath, e?.message || e);
+    }
+  }
+});
+

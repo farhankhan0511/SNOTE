@@ -32,6 +32,10 @@ import NotesPage from "./pages/NotesPage";
 
 import MyNoteListPage from "./pages/MyNoteListPage";
 import NotesListPage from "./pages/NoteListPage";
+import ViewNote from "./pages/ViewNote";
+import PendingPRsPage from "./pages/PendingPRsPage";
+import MergePRPage from "./pages/MergePRPage";
+import PRViewPage from "./pages/PRViewPage";
 
 function App() {
   const queryClient = new QueryClient();
@@ -54,6 +58,10 @@ function App() {
                 <Route path="notes" element={<NotesListPage />} />
                 <Route path="mynotes" element={<MyNoteListPage />} />
                 <Route path="mynotes/:noteId" element={<NotesPage />} />
+                <Route path="/prs/pending" element={<PendingPRsPage />} />
+<Route path="/prs/:prId/merge" element={<MergePRPage />} />
+<Route path="/prs/:prId" element={<PRViewPage />} />
+                <Route path="view/:noteId" element={<ViewNote />} />
                 <Route path="about" element={<About />} />
                 <Route path="settings/" element={<Settings />} />
                 <Route path="friends" element={<FriendsPage />} />

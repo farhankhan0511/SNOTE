@@ -43,10 +43,16 @@ const noteSchema = new mongoose.Schema(
        
         default:0
     },
-    history:[{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:"noteversions",
-    }],
+    currentVersion: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "NoteVersion",
+      default: null,
+    },
+    forkedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Note",
+    },
+
     collaborators: [
       {
         user: {

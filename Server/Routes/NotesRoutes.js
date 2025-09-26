@@ -22,6 +22,7 @@ import {
   updateNoteValidationRules,
 } from "../security/validation.js";
 import { validate } from "../security/validationMiddleware.js";
+import { forkNote } from "../Controller/PRController.js";
 // ------
 
 const router = express.Router();
@@ -77,6 +78,7 @@ router.post(
 // Route to get all notes
 router.route("/notes").get(authMiddleware, getAllNotes);
 router.get("/:id", authMiddleware, getNoteById);
+router.post("/:noteId/fork", authMiddleware, forkNote);   
 
 // router.route("/")
 

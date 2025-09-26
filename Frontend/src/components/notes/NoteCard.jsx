@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { togglevisibility } from "@/api/NoteApi";
 
 const NoteCard = ({
   note,
@@ -70,14 +71,14 @@ const NoteCard = ({
       <div className="flex-1">
         {note?.title && (
           <h3
-            className="text-sm font-semibold m-0 mb-1.5 leading-tight"
+            className="text-sm font-semibold m-0 mb-1.5 leading-tight overflow-hidden"
             style={{ color: "var(--txt)" }}
           >
             {truncateText(note?.title, 40)}
           </h3>
         )}
         <div
-          className="text-xs leading-snug"
+          className="text-xs leading-snug overflow-hidden"
           style={{ color: "var(--txt-dim)" }}
         >
           {truncateText(getPlainTextPreview(note?.content), 100)}
@@ -128,10 +129,12 @@ const NoteCard = ({
           </Button>
 
           <Button
-            disabled
+            onClick={(e)=>{
+              e.stopPropagation(); 
+              togglevisibility(note?._id)}}
             variant="transparent"
             size="icon"
-            className="p-1 rounded opacity-40 cursor-not-allowed"
+            className="p-1 rounded  "
           >
             <UserPlus size={16} />
           </Button>

@@ -37,12 +37,12 @@ function StudyRoom() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 2xl:gap-6 flex-1 notes-goals-grid">
               <NotesComponent />
-              <GoalsComponent />
+             
             </div>
           </div>
           <Calender />
         </div>
-        <PinnedRooms />
+        {/* <PinnedRooms /> */}
         {!isProfileComplete() && (
           <div
             className="bg-[var(--bg-ter)] border-2 border-red-500 text-[var(--txt)] px-6 py-5 rounded-2xl shadow-lg mt-6 text-center"

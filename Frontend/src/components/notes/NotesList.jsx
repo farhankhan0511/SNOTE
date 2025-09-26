@@ -15,6 +15,7 @@ const NotesList = ({
   setShowColorPicker,
   colors,
   getPlainTextPreview,
+  
 }) => {
   return (
     <>
@@ -41,6 +42,7 @@ const NotesList = ({
                 onPin={togglePin}
                 onSendToTrash={sendToTrashNote}
                 onArchive={archiveNote}
+                
                 onExport={exportNote}
                 onColorChange={changeColor}
                 showColorPicker={showColorPicker}

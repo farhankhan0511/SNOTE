@@ -11,12 +11,16 @@ import {
   getAllUserNotes,
   
   getArchivedNotes,
-  getNoteById,
+  
   getTrashedNotes,
+  getUserNoteById,
   moveToTrash,
   restoreNote,
   togglevisibility,
   updateNote,
+
+  uploadNotefromFile,
+
   uploadNoteImage,
 } from "../Controller/NotesController.js";
 
@@ -73,6 +77,14 @@ const upload = multer({
 });
 
 
+
+const storage = multer.memoryStorage();
+export const uploadFile = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
+
 router.post(
   "/",
   authMiddleware,
@@ -91,7 +103,14 @@ router.post(
   upload.single("noteImage"),
   uploadNoteImage
 );
-router.route("/togglevisibility").patch(authMiddleware, togglevisibility);
+
+router.post(
+  "/uploadFile",
+  authMiddleware,
+  uploadFile.single("docfile"),
+  uploadNotefromFile  
+);
+router.route("/togglevisibility/:id").patch(authMiddleware, togglevisibility);
 
 router.get("/archive", authMiddleware, getArchivedNotes);
 router.post("/archive/:id", authMiddleware, archiveNote);
@@ -101,7 +120,7 @@ router.post("/trash/:id", authMiddleware, moveToTrash);
 
 router.post("/restore/:id", authMiddleware, restoreNote);
 
-router.get("/:id", authMiddleware, getNoteById);
+router.get("/:id", authMiddleware, getUserNoteById);
 
 router.put(
   "/:id",
@@ -114,5 +133,7 @@ router.put(
 
 router.delete("/:id", authMiddleware, deleteNote);
 router.post("/deleteimage", authMiddleware, deleteNoteImage);
+
+
 
 export default router;

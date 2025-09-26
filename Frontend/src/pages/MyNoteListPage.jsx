@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -10,7 +10,7 @@ import {
   useArchivedNotes,
   useArchiveNote,
   useCreateNote,
-  useDeleteNote,  
+  useDeleteNote,
   useRestoreTrashedNote,
   useTrashedNotes,
   useTrashNote,
@@ -19,6 +19,7 @@ import {
 } from "@/queries/NoteQueries";
 
 import "@/components/notes/note.css";
+import { uploadNoteFile } from "@/api/NoteApi";
 
 const colors = [
   { name: "default", style: { backgroundColor: "var(--note-default)" } },
@@ -48,12 +49,17 @@ const MyNoteListPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(null);
 
+  // upload state + ref
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
   const notesObj = {
     active: notes,
     archive: archiveNotes,
     trash: trashNotes,
   };
 
+  // create note (existing behavior)
   const createNewNote = () => {
     createNoteMutation.mutate(
       {
@@ -64,7 +70,6 @@ const MyNoteListPage = () => {
       },
       {
         onSuccess: (newNote) => {
-          // Navigate to the new note editor
           navigate(`/mynotes/${newNote._id}`);
         },
       }
@@ -102,6 +107,7 @@ const MyNoteListPage = () => {
     setShowColorPicker(null);
   };
 
+
   const archiveNote = (note) => {
     archiveNoteMutation.mutate(note._id);
   };
@@ -133,18 +139,64 @@ const MyNoteListPage = () => {
     navigate(`/mynotes/${note._id}`);
   };
 
-  const filteredNotes = notesObj[status].filter((note) => {
+  const filteredNotes = (notesObj[status] || []).filter((note) => {
     const plainContent = getPlainTextPreview(note.content);
     const matchesSearch =
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (note.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       plainContent.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   const pinnedNotes = (notesObj[status] || []).filter((note) => note.pinnedAt);
-  const unpinnedNotes = (notesObj[status] || []).filter(
-    (note) => !note.pinnedAt
-  );
+  const unpinnedNotes = (notesObj[status] || []).filter((note) => !note.pinnedAt);
+
+  // =======================
+  // Upload handler (called when user picks a file)
+  // =======================
+  const handleFileChange = async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+
+    const allowed = [".pdf", ".doc", ".docx"];
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!allowed.includes(`.${ext}`)) {
+      toast.error("Unsupported file type. Use PDF or Word documents.");
+      event.target.value = "";
+      return;
+    }
+
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("File too large. Max 10MB allowed.");
+      event.target.value = "";
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("docfile", file); // backend expects 'docfile'
+
+      // Use Authorization header from localStorage if present (adjust to your auth)
+      const data = await uploadNoteFile(form);
+
+     
+      const createdNote = data?.data.note || data?.data.data || data; // adapt to your response shape
+      if (!createdNote || !createdNote._id) {
+        toast.success("File processed. Refresh notes to see it.");
+      } else {
+        toast.success("File uploaded and note created!");
+        navigate(`/mynotes/${createdNote._id}`);
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+      // reset input so same file can be selected again if needed
+      event.target.value = "";
+    }
+  };
 
   if (status === "active" && isLoading) {
     return <p>Loading notes...</p>;
@@ -170,8 +222,11 @@ const MyNoteListPage = () => {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           setStatus={setStatus}
-          setSelectedNote={() => {}} // Not used in list view
+          setSelectedNote={() => {}}
           status={status}
+          fileInputRef={fileInputRef}
+          handleFileChange={handleFileChange}
+          uploading={uploading}
         />
 
         {(status === "active" || status === "archive") && (
@@ -182,6 +237,7 @@ const MyNoteListPage = () => {
             searchTerm={searchTerm}
             setSelectedNote={handleNoteSelect}
             togglePin={togglePin}
+        
             sendToTrashNote={sendToTrashNote}
             archiveNote={archiveNote}
             exportNote={exportNote}

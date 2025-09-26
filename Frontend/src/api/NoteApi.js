@@ -1,6 +1,13 @@
 import axiosInstance from "@/utils/axios";
 
-
+export const forkNote = async (noteId) => {
+  const { data } = await axiosInstance.post(`/note/${noteId}/fork`);
+  return data.data;
+};
+export const togglevisibility = async (id) => {
+  const { data } = await axiosInstance.patch(`/mynote/togglevisibility/${id}`);
+  return data.data;
+}
 
 export const getAllNotes = async () => {
   const { data } = await axiosInstance.get("/note/notes");
@@ -11,9 +18,20 @@ export const getAllUserNotes = async () => {
   const { data } = await axiosInstance.get("/mynote/notes");
   return data.data;
 };
-
-export const getNoteById = async (id) => {
+export const uploadNoteFile=async(formData)=>{
+  const { data } = await axiosInstance.post("/mynote/uploadFile", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
+  return data.data;
+};
+export const getUserNoteById = async (id) => {
   const { data } = await axiosInstance.get(`/mynote/${id}`);
+  return data.data;
+};
+export const getNoteById = async (id) => {
+  const { data } = await axiosInstance.get(`/note/${id}`);
   return data.data;
 };
 
@@ -57,3 +75,31 @@ export const restoreTrashedNote = async (id) => {
   return data.data;
 };
 
+export const getPRApi=async(prId)=>{
+  const { data } = await axiosInstance.get(`/prs/${prId}`);
+  return data.data;
+};
+
+export const getPendingPRsApi=async()=>{
+  const { data } = await axiosInstance.get(`/prs?status=open`);
+  return data.data;
+};
+
+export const closePRApi=async(prId)=>{
+  const { data } = await axiosInstance.post(`/prs/${prId}/close`);
+  return data.data;
+}
+
+export const mergePRApi=async(prId)=>{
+  const { data } = await axiosInstance.post(`/prs/${prId}/merge`);
+  return data.data;
+}
+
+export const createPRApi=async(prData)=>{
+  const { data } = await axiosInstance.post(`/prs`,prData);
+  return data.data;
+}
+export const resolveMergeApi=async(prId,resolvedText)=>{
+  const { data } = await axiosInstance.post(`/prs/${prId}/resolve`,{resolvedText});
+  return data.data;
+}

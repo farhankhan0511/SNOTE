@@ -7,8 +7,11 @@ import SessionRoomRoutes from "./SessionRoomRoutes.js";
 import FriendsRoutes from "./FriendsRoutes.js";
 import UserRoutes from "./UserRoutes.js";
 import MyNotesRoutes from "./MyNotesRoutes.js";
+import prRouter from "./PRRoutes.js";
+
 
 export function mountRoutes(app) {
+  app.use("/prs", prRouter);
   app.use("/auth", authRoutes);
   app.use("/todo", TodoRoutes);
   app.use("/note", NotesRoutes);

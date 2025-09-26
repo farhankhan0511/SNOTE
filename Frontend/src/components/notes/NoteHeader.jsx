@@ -1,5 +1,4 @@
 import { Archive, FileText, Plus, Search, Trash2 } from "lucide-react";
-// import { Button } from "../ui/button";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +9,10 @@ const NoteHeader = ({
   selectedNote,
   setStatus,
   setSelectedNote,
+  fileInputRef,
+  handleFileChange,
   status,
+  uploading = false,
 }) => {
   return (
     <header
@@ -20,7 +22,7 @@ const NoteHeader = ({
           : "flex-row items-start gap-6 mb-3"
       }`}
     >
-      {/* 🔹 Navigation Tabs */}
+      {/* Navigation Tabs */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
@@ -45,6 +47,7 @@ const NoteHeader = ({
             />
           )}
         </Button>
+
         <Button
           variant="ghost"
           className={`flex items-center gap-2 font-medium px-3 py-2 rounded-lg relative
@@ -68,6 +71,7 @@ const NoteHeader = ({
             />
           )}
         </Button>
+
         <Button
           variant="ghost"
           className={`flex items-center gap-2 font-medium px-3 py-2 rounded-lg relative
@@ -124,6 +128,30 @@ const NoteHeader = ({
           >
             <Plus size={18} />
             New Note
+          </Button>
+        </motion.div>
+
+        <motion.div whileHover={{ scale: 1.1 }}>
+          {/* hidden file input; controlled via ref passed from parent */}
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            data-testid="note-upload-input"
+          />
+
+          <Button
+            onClick={() => fileInputRef?.current?.click()}
+            disabled={uploading}
+            className={`w-full p-2.5 px-6 cursor-pointer flex items-center justify-center gap-2 bg-[var(--btn)] text-white hover:bg-[var(--btn-hover)] rounded-lg ${
+              selectedNote && "hidden"
+            } ${uploading ? "opacity-60 cursor-not-allowed" : ""}`}
+            title={uploading ? "Uploading…" : "Upload Note"}
+          >
+            <Plus size={18} />
+            {uploading ? "Uploading..." : "Upload Note"}
           </Button>
         </motion.div>
       </div>

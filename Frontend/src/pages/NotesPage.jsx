@@ -20,7 +20,7 @@ import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
 import NoteEditor from "@/components/notes/NoteEditor.jsx";
-import { useNote, useUpdateNote } from "@/queries/NoteQueries";
+import { useMyNote, useUpdateNote } from "@/queries/NoteQueries";
 import axiosInstance from "@/utils/axios";
 
 import "@/components/notes/note.css";
@@ -39,8 +39,9 @@ const colors = [
 const NoteEditorPage = () => {
   const { noteId } = useParams();
   const navigate = useNavigate();
-  const { data: note } = useNote(noteId);
+  const { data: note } = useMyNote(noteId);
   const [selectedNote, setSelectedNote] = useState(note);
+
 
   const updateNoteMutation = useUpdateNote();
   
@@ -53,7 +54,7 @@ const NoteEditorPage = () => {
     } else {
       // Note not found, redirect back to notes list
       toast.error("Note not found");
-      navigate("/notes");
+      navigate("/mynotes");
     }
   }, [noteId, note, navigate]);
 
@@ -358,7 +359,7 @@ const NoteEditorPage = () => {
   };
 
   const handleClose = () => {
-    navigate("/notes");
+    navigate(-1);
   };
 
   if (!selectedNote) {
@@ -386,6 +387,7 @@ const NoteEditorPage = () => {
           insertTable={insertTable}
           onClose={handleClose}
           isFullScreen={true}
+          
         />
       </div>
     </div>

@@ -1,14 +1,15 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import {
   BarChart2,
-  Gamepad2,
+  
   LogIn,
-  Radio,
+  
   Settings,
   BadgeInfo,
-  Users,
+  
   StickyNote,
-  MessageCircle,
+  GitFork,
+
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -105,7 +106,7 @@ function Sidebar() {
           <SidebarLink
             to="/notes"
             IconComponent={StickyNote}
-            label="Notes"
+            label="Discover"
             isActive={location.pathname === "/notes"}
             ref={(el) => (linkRefs.current["/notes"] = el)}
           />
@@ -115,6 +116,13 @@ function Sidebar() {
             label="My Notes"
             isActive={location.pathname === "/mynotes"}
             ref={(el) => (linkRefs.current["/mynotes"] = el)}
+          />
+          <SidebarLink
+            to="/prs/pending"
+            IconComponent={GitFork}
+            label="PRs"
+            isActive={location.pathname === "/prs/pending"}
+            ref={(el) => (linkRefs.current["/prs/pending"] = el)}
           />
           {/* <SidebarLink
             to="/friends"
