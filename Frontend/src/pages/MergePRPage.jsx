@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import DiffViewer from "react-diff-viewer-continued";
 import PRConflictEditor from "../components/PRConflictEditor";
-import { getPRApi, mergePRApi, resolveMergeApi, closePRApi } from "../api/NoteApi";
+import { getPRApi, mergePRApi, resolveMergeApi, closePRApi, getNoteById } from "../api/NoteApi";
+import { toast } from "react-toastify";
+
 
 const Button = ({ children, onClick, variant = "primary", ...props }) => {
   const base =
@@ -46,10 +48,9 @@ export default function MergePRPage() {
       setPr(prData);
       const targetNoteId = prData?.target?.note;
       if (targetNoteId) {
-        const res = await fetch(`/note/${targetNoteId}`);
-        const b = await res.json();
-        const n = b?.data ?? b;
-        setTargetNote(n);
+        const res = await getNoteById(targetNoteId);       
+       
+        setTargetNote(res);
       }
     } catch (err) {
       console.error("Failed to load PR or target note", err);
@@ -63,30 +64,48 @@ export default function MergePRPage() {
     setBusy(true);
     try {
       await mergePRApi(prId);
-      alert("Merged successfully.");
+      toast.success("Merged successfully.");
       navigate(`/mynotes/${pr.target.note}`);
-    } catch (err) {
-      if (err.type === "conflict") {
-        const payload = err.data?.data ?? err.data ?? err;
-        setConflicts(payload.conflicts ?? payload);
-        alert("Merge has conflicts — you must resolve them.");
-      } else {
-        console.error("Merge failed", err);
-        alert("Merge failed: " + (err.message || err));
-      }
+    } // inside MergePRPage.jsx - where you catch the merge error
+ catch (err) {
+  // normalize different possible payload shapes into an array of hunks
+  const payload = err?.data?.data ?? err?.data ?? err ?? {};
+  // payload may be { conflicts: [...] } or { data: { conflicts: [...] } } or an array already
+  const conflictsFromPayload =
+    Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload.conflicts)
+          ? payload.conflicts
+          : (Array.isArray(payload.data?.conflicts) ? payload.data.conflicts : []));
+
+  if (conflictsFromPayload.length > 0) {
+    setConflicts(conflictsFromPayload);
+    alert("Merge has conflicts — you must resolve them.");
+  } else {
+    // If no structured conflicts but server signaled conflict, store the whole payload
+    // (the editor will gracefully fall back)
+    setConflicts(payload);
+    alert("Merge failed with conflict info (no structured hunks). Open the conflict editor to resolve manually.");
+  }
+    toast.error("Merge failed: " + (err.message || err));
+
     } finally { setBusy(false); }
   };
 
-  const applyManualResolution = async (resolvedText) => {
+  const applyManualResolution = async (resolvedContent) => {
+     if (!resolvedContent || String(resolvedContent).trim() === "") {
+    toast.error("Resolved content is empty — please edit the merged result before applying.");
+    return;
+  }
     if (!window.confirm("Apply manual resolution and merge?")) return;
     setBusy(true);
     try {
-      await resolveMergeApi(prId, resolvedText);
-      alert("Merged successfully after manual resolution.");
+      await resolveMergeApi(prId, resolvedContent);
+      toast.success("Merged successfully after manual resolution.");
       navigate(`/mynotes/${pr.target.note}`);
     } catch (err) {
       console.error("Resolve failed", err);
-      alert("Resolve failed: " + (err.message || err));
+      toast.error("Resolve failed: " + (err.message || err));
     } finally { setBusy(false); }
   };
 
@@ -131,7 +150,7 @@ export default function MergePRPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-1 gap-4">
           <div className="col-span-1">
             <div className="text-xs text-gray-500 mb-2">Incoming (source)</div>
             <div className="border rounded-lg overflow-auto h-96">

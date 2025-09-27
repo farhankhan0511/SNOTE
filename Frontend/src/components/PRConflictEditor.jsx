@@ -1,26 +1,14 @@
 // Frontend/src/components/PRConflictEditor.jsx
-import  { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 
 /**
- * PRConflictEditor
+ * PRConflictEditor (hardened)
  *
- * Props:
- * - conflicts: array of hunks, each { a: [lines], o: [lines], b: [lines] }
- * - baseContent: optional full base text (string)
- * - sourceContent: optional full source text (string)
- * - targetContent: optional full target text (string)
- * - onResolve(resolvedText) : callback called with final resolved text (string)
- *
- * Behavior:
- * - Builds a helper "merged" text made from the conflict hunks (with markers),
- *   shows it in an editable textarea where user can edit freely.
- * - Shows per-hunk panes to inspect Source/Base/Target and "Use Source/Target/Base/Custom"
- *   buttons that insert that hunk's chosen resolution into the merged textarea at the cursor.
- * - Also provides quick actions to load the full source or full target into the editor as a starting point.
- *
- * Note: This component intentionally favors a manual-edit workflow (owner can edit merged text).
- * If you later store conflict *positions* on the server, you can do in-place replacements.
+ * - Normalizes wrapper shapes (array or { conflicts: [...] } etc.)
+ * - If hunks exist but are all empty, falls back to showing target/source/base
+ * - Keeps mergedText in sync if props change
+ * - Prevents inserting empty snippets and prevents submitting empty resolved text
  */
 export default function PRConflictEditor({
   conflicts = [],
@@ -29,58 +17,86 @@ export default function PRConflictEditor({
   targetContent = "",
   onResolve,
 }) {
-  // Build a mergedText from conflicts (markers) as a helpful starting point.
+  // normalize incoming prop: always produce an array of hunks
+  const hunks = useMemo(() => {
+    if (Array.isArray(conflicts)) return conflicts;
+    if (!conflicts || typeof conflicts !== "object") return [];
+    return Array.isArray(conflicts.conflicts)
+      ? conflicts.conflicts
+      : (Array.isArray(conflicts.data?.conflicts) ? conflicts.data.conflicts : []);
+  }, [conflicts]);
+
+  // helper to check whether a hunk has any non-empty content (a/o/b)
+  const anyHunkHasContent = useMemo(() => {
+    if (!hunks || hunks.length === 0) return false;
+    return hunks.some((h) => {
+      const aLen = Array.isArray(h.a) ? h.a.join("").trim().length : String(h.a ?? "").trim().length;
+      const oLen = Array.isArray(h.o) ? h.o.join("").trim().length : String(h.o ?? "").trim().length;
+      const bLen = Array.isArray(h.b) ? h.b.join("").trim().length : String(h.b ?? "").trim().length;
+      return (aLen + oLen + bLen) > 0;
+    });
+  }, [hunks]);
+
+  // Build a mergedText from hunks (markers) as a helpful starting point,
+  // but if hunks are present and all empty, fallback to existing target/source/base content.
   const initialMergedText = useMemo(() => {
-    if (!conflicts || conflicts.length === 0) {
-      // fallback: prefer current target, else source, else base
+    if (!hunks || hunks.length === 0) {
       return targetContent || sourceContent || baseContent || "";
     }
+    if (!anyHunkHasContent) {
+      // all hunks empty -> prefer full target/source/base to avoid overwriting with empties
+      return targetContent || sourceContent || baseContent || "";
+    }
+
     const lines = [];
-    conflicts.forEach((h, idx) => {
+    hunks.forEach((h, idx) => {
       lines.push(`<<<<<<< SOURCE (hunk ${idx + 1})`);
-      lines.push(...(h.a || []));
+      lines.push(...(Array.isArray(h.a) ? h.a : (h.a ? String(h.a).split("\n") : [])));
       lines.push("||||||| BASE");
-      lines.push(...(h.o || []));
+      lines.push(...(Array.isArray(h.o) ? h.o : (h.o ? String(h.o).split("\n") : [])));
       lines.push(">>>>>>> TARGET");
-      lines.push(...(h.b || []));
+      lines.push(...(Array.isArray(h.b) ? h.b : (h.b ? String(h.b).split("\n") : [])));
       lines.push(`<<<<<<< END (hunk ${idx + 1})`);
-      // add a blank line between hunks to improve readability
       lines.push("");
     });
     return lines.join("\n");
-  }, [conflicts, targetContent, sourceContent, baseContent]);
+  }, [hunks, anyHunkHasContent, targetContent, sourceContent, baseContent]);
 
   const [mergedText, setMergedText] = useState(initialMergedText);
-//   const [selectedHunkIndex, setSelectedHunkIndex] = useState(0);
-  // custom editor per-hunk (string) if user wants to craft a custom resolution for that hunk
+  // keep mergedText in sync when initialMergedText changes (e.g., after async load)
+  useEffect(() => {
+    setMergedText(initialMergedText);
+  }, [initialMergedText]);
+
   const [customHunks, setCustomHunks] = useState({});
+  const textareaRef = useRef(null);
 
   // helper: convert array of lines -> string
-  const linesToString = (lines) => (Array.isArray(lines) ? lines.join("\n") : (lines || ""));
+  const linesToString = (lines) => (Array.isArray(lines) ? lines.join("\n") : (lines ?? ""));
 
   // Insert text at cursor in the merged textarea
-  const insertAtCursor = (textareaRef, text) => {
-    if (!textareaRef) return;
-    const el = textareaRef;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
+  const insertAtCursor = (text) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
     const before = mergedText.slice(0, start);
     const after = mergedText.slice(end);
     const newText = before + text + after;
     setMergedText(newText);
-    // move cursor after inserted text (small delay to ensure DOM updated)
+    // move cursor after inserted text
     setTimeout(() => {
-      el.selectionStart = el.selectionEnd = start + text.length;
+      if (el.setSelectionRange) {
+        el.setSelectionRange(start + text.length, start + text.length);
+      } else {
+        el.selectionStart = el.selectionEnd = start + text.length;
+      }
       el.focus();
     }, 0);
   };
 
-  // We will capture textarea ref to support insertAtCursor
-  let textareaRef = null;
-
-  // Helper to create the resolution string for a hunk depending on choice
   const buildHunkResolutionString = (hunk, choice, customStr) => {
-    // choice: "source" | "target" | "base" | "custom"
+    if (!hunk) return "";
     if (choice === "source") return linesToString(hunk.a || []);
     if (choice === "target") return linesToString(hunk.b || []);
     if (choice === "base") return linesToString(hunk.o || []);
@@ -88,23 +104,31 @@ export default function PRConflictEditor({
     return "";
   };
 
-  // When user clicks 'Use X for hunk', we'll append that chosen snippet into the merged textarea at cursor.
   const onUseForHunk = (index, choice) => {
-    const hunk = conflicts[index];
+    const hunk = hunks[index];
     const custom = customHunks[index] ?? "";
     const text = buildHunkResolutionString(hunk, choice, custom);
-    // ensure a newline prefix/suffix for readability
+    if (!text || String(text).trim() === "") {
+      // prevent inserting empty resolutions — helps avoid wiping note content
+      alert("That hunk has no content for the chosen option.");
+      return;
+    }
     const snippet = `\n/* --- hunk ${index + 1} resolution (${choice}) --- */\n${text}\n/* --- end hunk ${index + 1} --- */\n`;
-    insertAtCursor(textareaRef, snippet);
+    insertAtCursor(snippet);
   };
 
   // Quick actions
   const loadFullSource = () => setMergedText(sourceContent || "");
   const loadFullTarget = () => setMergedText(targetContent || "");
+  const resetHelper = () => setMergedText(initialMergedText);
 
-  // Final apply: pass mergedText to parent
+  // Final apply: pass mergedText to parent — but block empty submissions
   const applyResolved = () => {
     if (!onResolve) return;
+    if (!mergedText || mergedText.trim() === "") {
+      alert("Resolved text is empty — please edit the merged result before applying.");
+      return;
+    }
     onResolve(mergedText);
   };
 
@@ -114,15 +138,14 @@ export default function PRConflictEditor({
         <div>
           <strong>Conflict helper</strong>
           <div style={{ fontSize: 13, color: "#555" }}>
-            Use the hunk controls to copy a chosen resolution into the editor below, then edit and click
-            &nbsp;<em>Apply resolution</em>.
+            Use the hunk controls to copy a chosen resolution into the editor below, then edit and click <em>Apply resolution</em>.
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={loadFullSource} disabled={!sourceContent}>Load full source</button>
           <button onClick={loadFullTarget} disabled={!targetContent}>Load full target</button>
-          <button onClick={() => setMergedText(initialMergedText)}>Reset helper merged text</button>
+          <button onClick={resetHelper}>Reset helper merged text</button>
         </div>
       </div>
 
@@ -132,13 +155,19 @@ export default function PRConflictEditor({
             <strong>Conflict hunks</strong>
           </div>
 
-          {(!conflicts || conflicts.length === 0) && (
+          {(!hunks || hunks.length === 0) && (
             <div style={{ color: "#666", fontSize: 13 }}>No structured conflicts provided. Edit the merged text manually.</div>
           )}
 
-          {conflicts && conflicts.length > 0 && (
+          {hunks && hunks.length > 0 && !anyHunkHasContent && (
+            <div style={{ color: "#a00", fontSize: 13, marginBottom: 8 }}>
+              Note: structured hunks were provided but contain no content. Showing full target/source instead to avoid accidental deletion.
+            </div>
+          )}
+
+          {hunks && hunks.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {conflicts.map((h, idx) => (
+              {hunks.map((h, idx) => (
                 <div key={idx} style={{ border: "1px solid #eee", padding: 8, borderRadius: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ fontWeight: 600 }}>Hunk {idx + 1}</div>
@@ -176,7 +205,6 @@ export default function PRConflictEditor({
                     <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
                       <button onClick={() => onUseForHunk(idx, "custom")}>Use custom</button>
                       <button onClick={() => {
-                        // quick copy custom into clipboard
                         const t = customHunks[idx] ?? "";
                         navigator.clipboard?.writeText(t);
                         alert("Custom hunk text copied to clipboard (paste into editor).");
@@ -196,7 +224,7 @@ export default function PRConflictEditor({
           </div>
 
           <textarea
-            ref={(el) => (textareaRef = el)}
+            ref={textareaRef}
             value={mergedText}
             onChange={(e) => setMergedText(e.target.value)}
             rows={20}
@@ -204,7 +232,7 @@ export default function PRConflictEditor({
           />
 
           <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => setMergedText(initialMergedText)}>Reset helper text</button>
+            <button onClick={resetHelper}>Reset helper text</button>
             <button
               onClick={() => {
                 if (!mergedText || mergedText.trim() === "") {
@@ -224,7 +252,7 @@ export default function PRConflictEditor({
 }
 
 PRConflictEditor.propTypes = {
-  conflicts: PropTypes.array,
+  conflicts: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
   baseContent: PropTypes.string,
   sourceContent: PropTypes.string,
   targetContent: PropTypes.string,

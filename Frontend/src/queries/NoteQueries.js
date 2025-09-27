@@ -16,10 +16,15 @@ import {
 } from "@/api/NoteApi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const usePublicNotes = () =>
+export const usePublicNotes = (search = "") =>
   useQuery({
-    queryKey: ["publicNotes"],
-    queryFn: getAllNotes,
+    queryKey: ["publicNotes", search],
+    queryFn: () => getAllNotes(search),
+    // keep previous results while fetching new ones (good UX for search)
+    keepPreviousData: true,
+    // small stale time to avoid excessive refetches
+    staleTime: 1000 * 60,
+    // optional: retry/failure handling can be tuned here
   });
 export const useUserNotes = () =>
   useQuery({

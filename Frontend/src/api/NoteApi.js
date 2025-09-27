@@ -9,13 +9,26 @@ export const togglevisibility = async (id) => {
   return data.data;
 }
 
-export const getAllNotes = async () => {
-  const { data } = await axiosInstance.get("/note/notes");
-  console.log(data)
+// Frontend/src/api/NoteApi.js
+export const getAllNotes = async (searchTerm = "") => {
+  // ensure we always pass a string
+  const search = (searchTerm || "").trim();
+
+  const { data } = await axiosInstance.get("/note/notes", {
+    params: {
+      search,
+      limit: 200, // adjust as needed
+    },
+  });
+
+  // server returns { success: true, data: [...] }
   return data.data;
 };
-export const getAllUserNotes = async () => {
-  const { data } = await axiosInstance.get("/mynote/notes");
+
+export const getAllUserNotes = async ({ q = "", limit = 100, skip = 0 } = {}) => {
+  const { data } = await axiosInstance.get("/mynote/notes", {
+    params: { q, limit, skip },
+  });
   return data.data;
 };
 export const uploadNoteFile=async(formData)=>{
@@ -99,7 +112,7 @@ export const createPRApi=async(prData)=>{
   const { data } = await axiosInstance.post(`/prs`,prData);
   return data.data;
 }
-export const resolveMergeApi=async(prId,resolvedText)=>{
-  const { data } = await axiosInstance.post(`/prs/${prId}/resolve`,{resolvedText});
+export const resolveMergeApi=async(prId,resolvedContent)=>{
+  const { data } = await axiosInstance.post(`/prs/${prId}/resolve`,{resolvedContent});
   return data.data;
 }

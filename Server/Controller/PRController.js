@@ -134,6 +134,10 @@ export const resolveMerge = async (req, res) => {
 
     const pr = await PR.findById(prId);
     if (!pr) return res.status(404).json(new ApiResponse(404, {}, "PR not found"));
+    if (typeof resolvedContent !== "string" || resolvedContent.trim() === "") {
+  return res.status(400).json(new ApiResponse(400, {}, "Resolved content must be a non-empty string"));
+}
+    if (pr.status !== "open") return res.status(400).json(new ApiResponse(400, {}, "PR is not open"));      
 
     const targetNote = await Note.findById(pr.target.note);
     if (!targetNote) return res.status(404).json(new ApiResponse(404, {}, "Target note not found"));

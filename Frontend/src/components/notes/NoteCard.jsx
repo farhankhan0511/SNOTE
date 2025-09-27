@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { togglevisibility } from "@/api/NoteApi";
+import { toast } from "react-toastify";
 
 const NoteCard = ({
   note,
@@ -131,7 +132,9 @@ const NoteCard = ({
           <Button
             onClick={(e)=>{
               e.stopPropagation(); 
-              togglevisibility(note?._id)}}
+              togglevisibility(note?._id)
+              toast.success("Note visibility toggled.")
+            }}
             variant="transparent"
             size="icon"
             className="p-1 rounded  "

@@ -52,6 +52,7 @@ const MyNoteListPage = () => {
   // upload state + ref
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  
 
   const notesObj = {
     active: notes,

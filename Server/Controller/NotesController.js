@@ -355,20 +355,47 @@ export const deleteNoteImage = async (req, res) => {
 
 
 
+// server/controllers/noteController.js (or equivalent)
 export const getAllNotes = asynchandler(async (req, res) => {
-  const id=req.user._id;
- try {
+  const id = req.user._id;
 
-   const Notes=await Note.find({owner: { $ne: id }, visibility: "public"}).populate("owner","Username").populate("collaborators.user","Username").sort({createdAt:-1});
-   if(!Notes){
-     return res.status(404).json(new ApiResponse(404,{},"Notes not found"))
- 
-   }
-   return res.status(200).json(new ApiResponse(200,Notes,"All Public Notes fetched successfully"))
- } catch (error) {
-   return res.status(500).json(new ApiResponse(500,{},error.message))
- }
-})
+  try {
+    // read search param (cap length to avoid abuse)
+    const rawSearch = String(req.query.search || "").trim();
+    const search = rawSearch.length > 200 ? rawSearch.slice(0, 200) : rawSearch;
+
+    // base query: public notes not owned by current user
+    const baseQuery = {
+      owner: { $ne: id },
+      visibility: "public",
+    };
+
+    // if search provided, do a safe regex on title (case-insensitive)
+    if (search) {
+      const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      baseQuery.title = { $regex: escapeRegex(search), $options: "i" };
+    }
+
+    // limit results for performance
+    const limit = Math.min(parseInt(req.query.limit || "200", 10), 1000);
+
+    const Notes = await Note.find(baseQuery)
+      .populate("owner", "Username")
+      .populate("collaborators.user", "Username")
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    if (!Notes) {
+      return res.status(404).json(new ApiResponse(404, {}, "Notes not found"));
+    }
+
+    return res.status(200).json(new ApiResponse(200, Notes, "All Public Notes fetched successfully"));
+  } catch (error) {
+    console.error("getAllNotes error:", error);
+    return res.status(500).json(new ApiResponse(500, {}, error.message));
+  }
+});
+
 
 
 export const uploadNotefromFile = asynchandler(async (req, res) => {

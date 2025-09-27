@@ -73,4 +73,5 @@ const noteSchema = new mongoose.Schema(
   }
 );
 
+
 export default mongoose.model("Note", noteSchema);

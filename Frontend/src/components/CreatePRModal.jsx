@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { createPRApi } from "../api/NoteApi";
+import { black } from "@/utils/mediaUtils";
+import { toast } from "react-toastify";
 
 /**
  * CreatePRModal
@@ -78,8 +80,10 @@ export default function CreatePRModal({
       const createdPR = res?.data ?? res;
       if (onCreated) onCreated(createdPR);
       if (onClose) onClose();
+      toast.success("Pull Request created.");
     } catch (err) {
       console.error("Create PR failed", err);
+      toast.error("Failed to create Pull Request.");
       // if createPRApi throws structured error, try to show message
       const msg = err?.message || (err?.data && JSON.stringify(err.data)) || "Failed to create PR";
       setError(msg);
@@ -112,6 +116,7 @@ export default function CreatePRModal({
           borderRadius: 8,
           padding: 20,
           boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+          color: "black",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -167,6 +172,7 @@ export default function CreatePRModal({
             <label style={{ display: "block", fontSize: 13, color: "#333" }}>Target note (original)</label>
             <input
               value={targetNoteId}
+              readOnly
               onChange={(e) => setTargetNoteId(e.target.value)}
               placeholder="Original note id (required)"
               style={{ width: "100%", padding: "8px 10px", marginTop: 6, borderRadius: 6, border: "1px solid #ddd" }}
